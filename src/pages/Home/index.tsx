@@ -2,7 +2,8 @@ import { useAchievements } from './hooks/useAchievements';
 import Sky from './components/Sky';
 import Landscape from './components/Landscape';
 import HillOutline from './components/HillOutline';
-import CanvasElements from './components/Elements/CanvasElements';
+import FloorElements from './components/Elements/Floor/FloorElements';
+import SkyElements from './components/Elements/Sky/SkyElements';
 
 const Home = () => {
   const { loading } = useAchievements();
@@ -20,7 +21,8 @@ const Home = () => {
       <Sky />
       <Landscape />
       {/* <HillOutline/> */}
-      <CanvasElements />
+      <FloorElements />
+      <SkyElements />
     </div>
   );
 };

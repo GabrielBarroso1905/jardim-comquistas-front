@@ -1,11 +1,11 @@
 import React, { useRef, useEffect, useState } from "react";
-import { useAchievements } from "../../hooks/useAchievements";
-import { getTopPxForeground } from "../../utils/terrain";
-import { preloadTrees, TREE_IMAGES } from "./Trees/treeImageCache";
-import type { TreeRecord } from "../../../../types/TreeRecord";
-import { getMousePos, hitTest, drawFallback } from "../../utils/canvasUtils";
+import { useAchievements } from "../../../hooks/useAchievements";
+import { getTopPxForeground, getSkyXBounds, GROUND_PADDING, TREE_MIN_SPACING, TREE_MAX_VERTICAL_NUDGE } from "../../../utils/terrain";
+import { preloadTrees, TREE_IMAGES } from "./Elements/FloorElements/treeImageCache";
+import type { TreeRecord } from "../../../../../types/TreeRecord";
+import { getMousePos, hitTest, drawFallback } from "../../../utils/canvasUtils";
 
-const CanvasElements: React.FC = () => {
+const FloorElements: React.FC = () => {
   const { achievements, loading } = useAchievements();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const treeMapRef = useRef<TreeRecord[]>([]);
@@ -27,33 +27,72 @@ const CanvasElements: React.FC = () => {
     const compute = async () => {
       await preloadTrees();
 
-      const viewportWidth = window.innerWidth || 1200;
-      const padding = 40;
-      const minX = padding;
-      const maxX = Math.max(viewportWidth - padding, minX + 1);
-      const denom = Math.max(achievements.length - 1, 1);
+      const { minX, maxX } = getSkyXBounds(GROUND_PADDING);
+      const groundAchievements = achievements.filter((a: any) => a.type !== "sky");
+      const denom = Math.max(groundAchievements.length - 1, 1);
 
-      const records: TreeRecord[] = achievements.map((achievement, index) => {
+      // Apenas elementos do terreno (árvores)
+      const records: TreeRecord[] = groundAchievements.map((achievement, index) => {
         const baseX = Math.round(minX + (index / denom) * (maxX - minX));
-        const baseY = getTopPxForeground(baseX);
-
         const seed = achievement.id;
-        const prng = (n: number) =>
-          Math.abs(Math.sin(n * 12.9898) * 43758.5453) % 1;
+        const prng = (n: number) => Math.abs(Math.sin(n * 12.9898) * 43758.5453) % 1;
 
         const x = baseX + Math.round((prng(seed) - 0.5) * 60);
+        const baseY = getTopPxForeground(baseX);
         const y =
           baseY +
           Math.round(prng(seed + 1) * 70) +
           Math.round((prng(seed + 2) - 0.5) * 20);
 
-        const typeKey =
-          index % 3 === 0 ? "tree" : index % 3 === 1 ? "tree2" : "tree3";
+        const typeKey = index % 3 === 0 ? "tree" : index % 3 === 1 ? "tree2" : "tree3";
 
         return { id: achievement.id, x, y, w: 90, h: 95, achievement, typeKey };
       });
 
-      treeMapRef.current = records;
+      // ---- Configuráveis (definidos em utils/terrain.ts) ----
+      const MIN_TREE_SPACING = TREE_MIN_SPACING;
+      const MAX_VERTICAL_NUDGE = TREE_MAX_VERTICAL_NUDGE;
+      // ---------------------------------------------------------------
+
+      // Ordena por X para aplicar espaçamento horizontal mínimo
+      records.sort((a, b) => a.x - b.x);
+      for (let i = 1; i < records.length; i++) {
+        const prev = records[i - 1];
+        const cur = records[i];
+        if (cur.x - prev.x < MIN_TREE_SPACING) {
+          cur.x = prev.x + MIN_TREE_SPACING;
+        }
+      }
+
+      // Garante que não saiam dos limites calculados
+      for (const r of records) {
+        r.x = Math.max(minX, Math.min(r.x, maxX));
+      }
+
+      // Ajuste vertical simples para reduzir sobreposição de hitboxes
+      for (let i = 0; i < records.length - 1; i++) {
+        const a = records[i];
+        const b = records[i + 1];
+        const aLeft = a.x - a.w / 2;
+        const aRight = aLeft + a.w;
+        const aTop = a.y - a.h + 8;
+        const aBottom = aTop + a.h;
+        const bLeft = b.x - b.w / 2;
+        const bRight = bLeft + b.w;
+        const bTop = b.y - b.h + 8;
+        const bBottom = bTop + b.h;
+        const overlapX = Math.max(0, Math.min(aRight, bRight) - Math.max(aLeft, bLeft));
+        const overlapY = Math.max(0, Math.min(aBottom, bBottom) - Math.max(aTop, bTop));
+        // Se houver sobreposição significativa, empurra a árvore mais "frontal" para baixo
+        if (overlapX > 10 && overlapY > 10) {
+          const front = a.y > b.y ? a : b;
+          front.y += Math.min(MAX_VERTICAL_NUDGE, Math.ceil(overlapY / 2));
+        }
+      }
+
+      // Ordena por Y (profundidade) para desenhar em z-order e para o hit-testing
+      const zSorted = [...records].sort((a, b) => a.y - b.y);
+      treeMapRef.current = zSorted; // hitTest usa esta lista
 
       const rect = canvas.getBoundingClientRect();
 
@@ -63,10 +102,11 @@ const CanvasElements: React.FC = () => {
 
       ctx.clearRect(0, 0, rect.width, rect.height);
 
-      for (const t of records) {
-        const img = TREE_IMAGES[t.typeKey];
+      for (const t of zSorted) {
         const drawX = t.x - t.w / 2;
         const drawY = t.y - t.h + 8;
+
+        const img = TREE_IMAGES[t.typeKey];
 
         if (img) {
           ctx.drawImage(img, drawX, drawY, t.w, t.h);
@@ -76,7 +116,7 @@ const CanvasElements: React.FC = () => {
         // 🔴 DEBUG: desenha a hitbox da árvore
         // ctx.strokeStyle = "red";
         // ctx.lineWidth = 1;
-        // ctx.strokeRect(t.x - t.w / 2, t.y - t.h + 8, t.w, t.h);
+        // ctx.strokeRect(t.x - t.w / 4, t.y - t.h + 8, t.w, t.h);
         //  DEBUG: desenha a posição da árvore
         // ctx.fillStyle = "blue";
         // ctx.font = "12px monospace";
@@ -154,6 +194,5 @@ const CanvasElements: React.FC = () => {
   );
 };
 
-export default CanvasElements;
+export default FloorElements;
 
-// drawFallback moved to ./utils/canvasUtils

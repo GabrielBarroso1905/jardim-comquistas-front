@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MOUNTAIN_PATHS } from '../utils/terrain';
+import { MOUNTAIN_PATHS, SKY_PADDING, SKY_MARGIN, SKY_MIN_Y, GROUND_PADDING, TREE_MIN_SPACING, TREE_MAX_VERTICAL_NUDGE, SKY_HEIGHT_LOW, SKY_HEIGHT_MID, SKY_HEIGHT_HIGH, getSkyHeightY, getPerspectiveLinesY, getScaleForY, PERSPECTIVE_RADIAL_COUNT } from '../utils/terrain';
 
 const HillOutline = () => {
   const ref = useRef<HTMLCanvasElement | null>(null);
@@ -52,8 +52,17 @@ const HillOutline = () => {
       }
 
       // Desenhar pontos em grid menos denso para performance
-      const step = 5; // aumentado de 1 para 5, reduzindo pixels em 25x
-      for (let x = 0; x < w; x += step) {
+      // passo derivado do espaçamento mínimo entre elementos do chão
+      const step = Math.max(1, Math.floor(TREE_MIN_SPACING / 4));
+      const left = GROUND_PADDING;
+      const right = Math.max(left + 1, w - GROUND_PADDING);
+
+      // calcular posições das 3 linhas de altura do céu
+      const yLow = getSkyHeightY(SKY_HEIGHT_LOW);
+      const yMid = getSkyHeightY(SKY_HEIGHT_MID);
+      const yHigh = getSkyHeightY(SKY_HEIGHT_HIGH);
+
+      for (let x = left; x < right; x += step) {
         for (let y = 0; y < h; y += step) {
           let isInsideAny = false;
           let edgeColor = '';
@@ -99,6 +108,107 @@ const HillOutline = () => {
           }
         }
       }
+
+      // Desenhar linhas horizontais indicativas das alturas do céu
+      cctx.save();
+      cctx.setLineDash([4, 4]);
+      cctx.lineWidth = 1;
+      cctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      // low
+      cctx.beginPath();
+      cctx.moveTo(left, yLow + 0.5);
+      cctx.lineTo(right, yLow + 0.5);
+      cctx.stroke();
+      // mid
+      cctx.beginPath();
+      cctx.moveTo(left, yMid + 0.5);
+      cctx.lineTo(right, yMid + 0.5);
+      cctx.stroke();
+      // high
+      cctx.beginPath();
+      cctx.moveTo(left, yHigh + 0.5);
+      cctx.lineTo(right, yHigh + 0.5);
+      cctx.stroke();
+      cctx.setLineDash([]);
+      // labels
+      cctx.fillStyle = 'rgba(255,255,255,0.95)';
+      cctx.font = `${12}px sans-serif`;
+      cctx.fillText('LOW', left + 6, yLow - 6);
+      cctx.fillText('MID', left + 6, yMid - 6);
+      cctx.fillText('HIGH', left + 6, yHigh - 6);
+      cctx.restore();
+
+      // Desenhar linhas radiais de perspectiva convergindo para o ponto de fuga (yMid)
+      const vanishingX = Math.round((left + right) / 2);
+      const vanishingY = Math.round(yMid);
+      const radialCount = Math.max(2, PERSPECTIVE_RADIAL_COUNT);
+      cctx.save();
+      cctx.strokeStyle = 'rgba(255, 255, 255, 0.88)';
+      cctx.lineWidth = 1;
+      cctx.setLineDash([2, 2]);
+      for (let i = 0; i < radialCount; i++) {
+        const t = i / Math.max(1, radialCount - 1);
+        const sx = Math.round(left + t * (right - left));
+        cctx.beginPath();
+        cctx.moveTo(sx, Math.round(h));
+        cctx.lineTo(vanishingX, vanishingY);
+        cctx.stroke();
+        // small tick at bottom
+        cctx.beginPath();
+        cctx.moveTo(sx - 4, h - 6);
+        cctx.lineTo(sx + 4, h - 6);
+        cctx.stroke();
+      }
+      // markers along each radial line to indicate near/mid/far (fractions from bottom -> vanishing)
+      const bands = [
+        { name: 'NEAR', f: 0.20, color: 'rgba(0,200,0,0.95)' },
+        { name: 'MID', f: 0.50, color: 'rgba(255,200,0,0.95)' },
+        { name: 'FAR', f: 0.80, color: 'rgba(255,80,80,0.95)' }
+      ];
+      for (let i = 0; i < radialCount; i++) {
+        const t = i / Math.max(1, radialCount - 1);
+        const sx = Math.round(left + t * (right - left));
+        for (const b of bands) {
+          const fx = sx + (vanishingX - sx) * b.f;
+          const fy = Math.round(h + (vanishingY - h) * b.f);
+          cctx.beginPath();
+          cctx.fillStyle = b.color;
+          cctx.arc(fx, fy, 3.5, 0, Math.PI * 2);
+          cctx.fill();
+        }
+      }
+      // linhas radiais vindas do topo
+      cctx.strokeStyle = 'rgba(255,255,255,0.9)';;
+      for (let i = 0; i < radialCount; i++) {
+        const t = i / Math.max(1, radialCount - 1);
+        const sx = Math.round(left + t * (right - left));
+        cctx.beginPath();
+        cctx.moveTo(sx, 0);
+        cctx.lineTo(vanishingX, vanishingY);
+        cctx.stroke();
+      }
+      // linhas radiais das laterais (esquerda/direita) para o ponto de fuga
+      cctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      for (let i = 0; i < radialCount; i++) {
+        const t = i / Math.max(1, radialCount - 1);
+        const sy = Math.round(t * h);
+        // esquerda
+        cctx.beginPath();
+        cctx.moveTo(left, sy);
+        cctx.lineTo(vanishingX, vanishingY);
+        cctx.stroke();
+        // direita
+        cctx.beginPath();
+        cctx.moveTo(right, sy);
+        cctx.lineTo(vanishingX, vanishingY);
+        cctx.stroke();
+      }
+      // draw vanishing point marker
+      cctx.fillStyle = 'rgba(255,255,255,0.9)';
+      cctx.beginPath();
+      cctx.arc(vanishingX, vanishingY, 4, 0, Math.PI * 2);
+      cctx.fill();
+      cctx.restore();
     }
 
     draw();
