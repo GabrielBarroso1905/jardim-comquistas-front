@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MOUNTAIN_PATHS, SKY_PADDING, SKY_MARGIN, SKY_MIN_Y, GROUND_PADDING, TREE_MIN_SPACING, TREE_MAX_VERTICAL_NUDGE, SKY_HEIGHT_LOW, SKY_HEIGHT_MID, SKY_HEIGHT_HIGH, getSkyHeightY, getPerspectiveLinesY, getScaleForY, PERSPECTIVE_RADIAL_COUNT } from '../utils/terrain';
+import { MOUNTAIN_PATHS, SKY_PADDING, SKY_MARGIN, SKY_MIN_Y, GROUND_PADDING, TREE_MIN_SPACING, TREE_MAX_VERTICAL_NUDGE, SKY_HEIGHT_LOW, SKY_HEIGHT_MID, SKY_HEIGHT_HIGH, getSkyHeightY, getPerspectiveLinesY, getScaleForY, PERSPECTIVE_RADIAL_COUNT, SKY_TOP_PADDING } from '../utils/terrain';
 
 const HillOutline = () => {
   const ref = useRef<HTMLCanvasElement | null>(null);
@@ -101,9 +101,9 @@ const HillOutline = () => {
             // Pontos transparentes dentro
             cctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
             cctx.fillRect(x, y, step, step);
-          } else {
-            // Céu: pontos laranjas vibrantes cobrindo tudo
-            cctx.fillStyle = 'rgba(255, 165, 0, 0.8)'; // laranja vibrante
+          } else if (y >= SKY_TOP_PADDING) {
+            // Céu: pontos laranjas vibrantes cobrindo tudo abaixo do padding
+            cctx.fillStyle = 'rgba(255, 166, 0, 0.14)'; // laranja vibrante
             cctx.fillRect(x, y, step, step);
           }
         }

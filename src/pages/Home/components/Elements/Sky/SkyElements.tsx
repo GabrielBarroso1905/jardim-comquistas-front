@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
 import { useAchievements } from "../../../hooks/useAchievements";
-import { getSkyMaxY, canPlaceInSky, getSkyXBounds, SKY_MARGIN, SKY_MIN_Y, MIN_SKY_SPACING, SKY_HEIGHT_LOW, SKY_HEIGHT_MID, SKY_HEIGHT_HIGH, getSkyHeightY } from "../../../utils/terrain";
+import { getSkyMaxY, canPlaceInSky, getSkyXBounds, SKY_MARGIN, SKY_MIN_Y, MIN_SKY_SPACING, SKY_HEIGHT_LOW, SKY_HEIGHT_MID, SKY_HEIGHT_HIGH, getSkyHeightY, SKY_TOP_PADDING } from "../../../utils/terrain";
 import { preloadSkies, SKY_IMAGES } from "./Elements/skyElements/skyImageCache";
 import type { TreeRecord } from "../../../../../types/TreeRecord";
 import { getMousePos, hitTest } from "../../../utils/canvasUtils";
@@ -36,7 +36,7 @@ const SkyElements: React.FC = () => {
         const x = baseX + Math.round((prng(seed, 1) - 0.5) * 60);
         const margin = SKY_MARGIN;
         const maxY = getSkyMaxY(x, margin);
-        const minY = SKY_MIN_Y;
+        const minY = Math.max(SKY_MIN_Y, SKY_TOP_PADDING);
         const y = Math.round(Math.max(minY, Math.min(maxY, minY + prng(seed, 2) * Math.max(1, maxY - minY))));
         // usar chave 'cloud' por padrão (podes adicionar outras chaves em skySvgs)
         return { id: achievement.id, x, y, w: 40, h: 30, achievement, typeKey: "cloud" };
@@ -106,6 +106,19 @@ const SkyElements: React.FC = () => {
           ctx.fill();
           ctx.restore();
         }
+
+        // 🔴 DEBUG: desenha a hitbox do elemento do céu
+        // ctx.strokeStyle = "red";
+        // ctx.lineWidth = 1;
+        // ctx.strokeRect(t.x - t.w / 4, t.y - t.h + 8, t.w, t.h);
+        //  DEBUG: desenha a posição do elemento do céu
+        // ctx.fillStyle = "blue";
+        // ctx.font = "12px monospace";
+        // ctx.fillText(
+        //   `(${Math.round(t.x)}, ${Math.round(t.y)})`,
+        //   t.x - t.w / 2,
+        //   t.y - t.h - 5,
+        // );
       }
       
     };

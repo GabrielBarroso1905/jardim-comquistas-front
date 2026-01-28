@@ -9,7 +9,7 @@ export const MOUNTAIN_PATHS = [
 ];
 
 // Constantes relacionadas ao terreno (uso em CanvasElements)
-export const GROUND_PADDING = 0; // padding horizontal padrão para elementos do chão
+export const GROUND_PADDING = 20; // padding horizontal padrão para elementos do chão
 export const TREE_MIN_SPACING = 20; // espaçamento mínimo horizontal entre árvores (px)
 export const TREE_MAX_VERTICAL_NUDGE = 5; // deslocamento vertical máximo para reduzir sobreposição
 
@@ -133,9 +133,10 @@ export const getSkyMaxY = (x: number, margin = 20): number => {
 };
 
 // Defaults e helpers para posicionamento de elementos do céu
-export const SKY_PADDING = GROUND_PADDING; // padding horizontal padrão
+export const SKY_PADDING = 50; // padding horizontal padrão para elementos do céu (maior que o do chão)
 export const SKY_MARGIN = 28; // margem vertical acima do topo da montanha
 export const SKY_MIN_Y = 8; // Y mínimo permitido para elementos do céu
+export const SKY_TOP_PADDING = 60; // padding (px) a partir do topo da viewport onde elementos do céu NÃO aparecem
 export const MIN_SKY_SPACING = 24; // espaçamento mínimo horizontal entre elementos do céu
 
 export const getSkyYBounds = (x: number, margin = SKY_MARGIN, minY = SKY_MIN_Y) => {
@@ -154,7 +155,8 @@ export const getSkyXBounds = (padding = SKY_PADDING): { minX: number; maxX: numb
 // Verifica se uma posição (x,y) está disponível para colocar algo no céu.
 export const canPlaceInSky = (x: number, y: number, margin = 20): boolean => {
   const maxY = getSkyMaxY(x, margin);
-  if (y < 0 || y > maxY) return false;
+  const minYAllowed = Math.max(SKY_MIN_Y, SKY_TOP_PADDING);
+  if (y < minYAllowed || y > maxY) return false;
   return isSky(x, y);
 };
 
