@@ -1,7 +1,8 @@
 import { useAchievements } from './hooks/useAchievements';
 import Sky from './components/Sky';
 import Landscape from './components/Landscape';
-import Elements from './components/Elements';
+import HillOutline from './components/HillOutline';
+import CanvasElements from './components/Elements/CanvasElements';
 
 const Home = () => {
   const { loading } = useAchievements();
@@ -18,7 +19,8 @@ const Home = () => {
     <div className="relative w-full h-screen overflow-hidden">
       <Sky />
       <Landscape />
-      <Elements />
+      {/* <HillOutline/> */}
+      <CanvasElements />
     </div>
   );
 };
