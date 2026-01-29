@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from "react";
-import { useAchievements } from "../../../hooks/useAchievements";
-import { getSkyMaxY, canPlaceInSky, getSkyXBounds, SKY_MARGIN, SKY_MIN_Y, MIN_SKY_SPACING, SKY_HEIGHT_LOW, SKY_HEIGHT_MID, SKY_HEIGHT_HIGH, getSkyHeightY, SKY_TOP_PADDING } from "../../../utils/terrain";
-import { preloadSkies, SKY_IMAGES } from "./Elements/skyElements/skyImageCache";
+import { useAchievements } from "../../../../../hooks/useAchievements";
+import { getSkyMaxY, canPlaceInSky, getSkyXBounds, SKY_MARGIN, SKY_MIN_Y, MIN_SKY_SPACING, SKY_HEIGHT_LOW, SKY_HEIGHT_MID, SKY_HEIGHT_HIGH, getSkyHeightY, SKY_TOP_PADDING } from "../../../../../core/terrain/bounds";
+import { preloadSkies, SKY_IMAGES } from "../../../../../core/cache/skyImageCache";
 import type { TreeRecord } from "../../../../../types/TreeRecord";
 import { getMousePos, hitTest } from "../../../utils/canvasUtils";
 
@@ -20,6 +20,7 @@ const SkyElements: React.FC = () => {
     if (loading) return;
 
     const dpr = window.devicePixelRatio || 1;
+    let rafId: number | null = null;
 
     const compute = async () => {
       await preloadSkies();
@@ -67,65 +68,57 @@ const SkyElements: React.FC = () => {
 
       ctx.clearRect(0, 0, rect.width, rect.height);
 
-      // calcular thresholds em pixels
-      const yLow = getSkyHeightY(SKY_HEIGHT_LOW);
-      const yMid = getSkyHeightY(SKY_HEIGHT_MID);
-      const yHigh = getSkyHeightY(SKY_HEIGHT_HIGH);
-
+      // todas as conquistas do céu viram estrelas
+      const starEntry = SKY_IMAGES["star"] as any;
       for (const t of skyMapRef.current) {
-        const drawX = t.x - t.w / 2;
-        const drawY = t.y - t.h + 8;
-        const img = SKY_IMAGES[t.typeKey];
-
-        // escolher cor baseada na altura (y maior = mais baixo na tela)
-        let tint = "#ffffff"; // abaixo do low -> branco
-        if (t.y >= yLow) tint = "#ffffff"; // low (mais baixo)
-        else if (t.y >= yMid) tint = "#FFD54F"; // entre low e mid -> amarelo
-        else if (t.y >= yHigh) tint = "#9E9E9E"; // entre mid e high -> cinza
-        else tint = "#64B5F6"; // acima do high -> azul
-
-        if (img) {
-          // desenha imagem e aplica tint usando source-atop
-          ctx.drawImage(img, drawX, drawY, t.w, t.h);
-          ctx.save();
-          ctx.globalCompositeOperation = "source-atop";
-          ctx.fillStyle = tint;
-          ctx.fillRect(drawX, drawY, t.w, t.h);
-          ctx.restore();
-        } else {
-          // fallback: desenhar forma simples de nuvem com cor
-          ctx.save();
-          ctx.fillStyle = tint;
-          const cx = t.x;
-          const cy = t.y - Math.round(t.h / 3);
-          ctx.beginPath();
-          ctx.arc(cx - 10, cy, 8, 0, Math.PI * 2);
-          ctx.arc(cx, cy - 4, 10, 0, Math.PI * 2);
-          ctx.arc(cx + 12, cy, 8, 0, Math.PI * 2);
-          ctx.rect(cx - 20, cy, 40, 12);
-          ctx.fill();
-          ctx.restore();
-        }
-
-        // 🔴 DEBUG: desenha a hitbox do elemento do céu
-        // ctx.strokeStyle = "red";
-        // ctx.lineWidth = 1;
-        // ctx.strokeRect(t.x - t.w / 4, t.y - t.h + 8, t.w, t.h);
-        //  DEBUG: desenha a posição do elemento do céu
-        // ctx.fillStyle = "blue";
-        // ctx.font = "12px monospace";
-        // ctx.fillText(
-        //   `(${Math.round(t.x)}, ${Math.round(t.y)})`,
-        //   t.x - t.w / 2,
-        //   t.y - t.h - 5,
-        // );
+        t.typeKey = "star";
+        t.w = 6;
+        t.h = 6;
+        t.anchorY = starEntry?.anchorY ?? 0.98;
       }
+
+      // animação simples (twinkle)
+      let rafIdInner: number | null = null;
+      const drawFrame = (ts: number) => {
+        ctx.clearRect(0, 0, rect.width, rect.height);
+        for (const t of skyMapRef.current) {
+          const entry = SKY_IMAGES["star"] as any;
+          const drawX = t.x - t.w / 2;
+          const drawY = t.y - t.h * (t.anchorY ?? 0.98);
+          const img = entry?.img;
+
+          const tw = 0.8 + 0.12 * Math.sin((performance.now() * 0.006) + t.id);
+          if (img) {
+            ctx.save();
+            ctx.globalAlpha = tw;
+            ctx.drawImage(img, drawX, drawY, t.w, t.h);
+            ctx.restore();
+          } else {
+            ctx.save();
+            ctx.globalAlpha = tw;
+            ctx.fillStyle = "#FFFFE0";
+            ctx.beginPath();
+            ctx.arc(t.x, drawY + t.h / 2, 1.8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+        }
+        rafIdInner = requestAnimationFrame(drawFrame);
+      };
+
+      if (rafIdInner) cancelAnimationFrame(rafIdInner);
+      rafIdInner = requestAnimationFrame(drawFrame);
+      // store raf id to outer scope to cancel on cleanup
+      rafId = rafIdInner;
       
     };
 
     compute();
     window.addEventListener("resize", compute);
-    return () => window.removeEventListener("resize", compute);
+    return () => {
+      window.removeEventListener("resize", compute);
+      if (rafId) cancelAnimationFrame(rafId);
+    };
   }, [achievements, loading]);
 
   useEffect(() => {

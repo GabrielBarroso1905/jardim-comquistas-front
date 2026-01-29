@@ -1,4 +1,4 @@
-import TREE_SVGS from './treeSvgs';
+import TREE_SVGS from '../svgs/treeSvgs';
 
 export const TREE_IMAGES: Record<string, HTMLImageElement> = {};
 let loaded = false;

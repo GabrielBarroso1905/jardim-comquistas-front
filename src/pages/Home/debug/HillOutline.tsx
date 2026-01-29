@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { MOUNTAIN_PATHS, SKY_PADDING, SKY_MARGIN, SKY_MIN_Y, GROUND_PADDING, TREE_MIN_SPACING, TREE_MAX_VERTICAL_NUDGE, SKY_HEIGHT_LOW, SKY_HEIGHT_MID, SKY_HEIGHT_HIGH, getSkyHeightY, getPerspectiveLinesY, getScaleForY, PERSPECTIVE_RADIAL_COUNT, SKY_TOP_PADDING } from '../utils/terrain';
+import { MOUNTAIN_PATHS, SKY_PADDING, SKY_MARGIN, SKY_MIN_Y, GROUND_PADDING, TREE_MIN_SPACING, TREE_MAX_VERTICAL_NUDGE, SKY_HEIGHT_LOW, SKY_HEIGHT_MID, SKY_HEIGHT_HIGH, getSkyHeightY, getPerspectiveLinesY, getScaleForY, PERSPECTIVE_RADIAL_COUNT, SKY_TOP_PADDING } from '../../../core/terrain/bounds';
 
 const HillOutline = () => {
   const ref = useRef<HTMLCanvasElement | null>(null);

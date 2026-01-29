@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { getGroundYPercentAt } from '../core/terrain/bounds';
 
 // Tipos exportados para facilitar manutenção e tipagem em componentes
 export type PointType = 'sky' | 'ground' | 'contour' | 'obstacle' | 'empty';
@@ -16,6 +17,8 @@ export type Grid = Point[][];
 
 export const DEFAULT_COLS = 48;
 export const DEFAULT_ROWS = 32;
+
+
 
 /**
  * Função que retorna a altura do solo (yPercent: 0..1) para uma dada posição xPercent (0..1).
@@ -68,27 +71,54 @@ export function classifyGrid(grid: Grid, gh: (x: number) => number = groundHeigh
   return classified;
 }
 
+export function snapToGround(
+  xPercent: number,
+  getGroundY: (x: number) => number
+) {
+  const groundY = getGroundY(xPercent);
+  return Math.max(0, Math.min(1, groundY));
+}
+
+function shuffle<T>(arr: T[]): T[] {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+
 /** Procura um ponto livre para a camada solicitada. Retorna null se não houver. */
 export function findFreePoint(grid: Grid, layer: 'sky' | 'ground'): Point | null {
   const rows = grid.length;
   const cols = rows ? grid[0].length : 0;
-  if (layer === 'ground') {
-    for (let x = 0; x < cols; x++) {
+
+  const colOrder = shuffle(Array.from({ length: cols }, (_, i) => i));
+
+  for (const x of colOrder) {
+    if (layer === 'ground') {
+      // começa da linha de contorno pra baixo
       for (let y = 0; y < rows; y++) {
         const p = grid[y][x];
-        if ((p.type === 'ground' || p.type === 'contour') && !p.occupied) return p;
+        if ((p.type === 'ground' || p.type === 'contour') && !p.occupied) {
+          return p;
+        }
       }
-    }
-  } else {
-    for (let x = 0; x < cols; x++) {
+    } else {
+      // céu: começa do topo e desce
       for (let y = 0; y < rows; y++) {
         const p = grid[y][x];
-        if (p.type === 'sky' && !p.occupied) return p;
+        if (p.type === 'sky' && !p.occupied) {
+          return p;
+        }
       }
     }
   }
+
   return null;
 }
+
 
 export function occupyPoint(grid: Grid, point: Point): void {
   const r = grid[point.yIndex];
@@ -104,7 +134,7 @@ export function occupyPoint(grid: Grid, point: Point): void {
 export function useTerrainGrid(cols = DEFAULT_COLS, rows = DEFAULT_ROWS) {
   const result = useMemo(() => {
     const raw = createGrid(cols, rows);
-    const classified = classifyGrid(raw, groundHeightAt);
+   const classified = classifyGrid(raw, getGroundYPercentAt);
     return {
       grid: classified,
       helpers: {

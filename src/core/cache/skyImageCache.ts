@@ -1,4 +1,4 @@
-import SKY_SVGS from './skySvgs';
+import SKY_SVGS from '../svgs/skySvgs';
 
 export const SKY_IMAGES: Record<string, HTMLImageElement> = {};
 let loaded = false;

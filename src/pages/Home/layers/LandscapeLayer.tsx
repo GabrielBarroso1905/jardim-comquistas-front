@@ -1,4 +1,4 @@
-const Landscape = () => {
+const LandscapeLayer = () => {
   return (
     <div className="relative w-full h-full">
       {/* Camadas de montanhas simples, em tons suaves */}
@@ -12,14 +12,14 @@ const Landscape = () => {
 
       {/* Colina do primeiro plano e rio simples */}
       <svg className="absolute bottom-0 left-0 w-full h-1/3" viewBox="0 0 1000 200" preserveAspectRatio="none">
-        <path d="M0,120 C200,40 400,40 600,120 C750,170 900,140 1000,120 L1000,200 L0,200 Z" fill="#10b981" />
-        <path d="M0,140 C200,80 400,80 600,140 C750,180 900,160 1000,140 L1000,200 L0,200 Z" fill="#34d399" opacity="0.6" />
+        <path d="M0,120 C200,40 400,40 600,120 C750,170 900,140 1000,120 L1000,200 L0,200 Z" fill="#4b774f" />
+        <path d="M0,140 C200,80 400,80 600,140 C750,180 900,160 1000,140 L1000,200 L0,200 Z" fill="#6aa377" opacity="0.6" />
       </svg>
 
       {/* Pequenas plantas estilizadas no primeiro plano (formas simples) */}
       <div className="absolute bottom-6 left-8 w-12 h-12">
         <svg viewBox="0 0 24 24" className="w-full h-full">
-          <g fill="#059669">
+          <g fill="#3b7a57">
             <ellipse cx="12" cy="18" rx="12" ry="6" opacity="0.12" />
             <path d="M12 6 C11 9 9 10 9 12 C10 11 12 11 13 12 C13 10 13 9 12 6 Z" />
           </g>
@@ -29,4 +29,4 @@ const Landscape = () => {
   );
 };
 
-export default Landscape;
+export default LandscapeLayer;

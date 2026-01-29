@@ -1,7 +1,16 @@
 import React, { useRef, useEffect, useState } from "react";
-import { useAchievements } from "../../../hooks/useAchievements";
-import { getTopPxForeground, getSkyXBounds, GROUND_PADDING, TREE_MIN_SPACING, TREE_MAX_VERTICAL_NUDGE } from "../../../utils/terrain";
-import { preloadTrees, TREE_IMAGES } from "./Elements/FloorElements/treeImageCache";
+import { useAchievements } from "../../../../../hooks/useAchievements";
+import {
+  getTopPxForeground,
+  getSkyXBounds,
+  GROUND_PADDING,
+  TREE_MIN_SPACING,
+  TREE_MAX_VERTICAL_NUDGE,
+} from "../../../../../core/terrain/bounds";
+import {
+  preloadTrees,
+  TREE_IMAGES,
+} from "../../../../../core/cache/treeImageCache";
 import type { TreeRecord } from "../../../../../types/TreeRecord";
 import { getMousePos, hitTest, drawFallback } from "../../../utils/canvasUtils";
 
@@ -10,17 +19,23 @@ const FloorElements: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const treeMapRef = useRef<TreeRecord[]>([]);
   const [hovered, setHovered] = useState<TreeRecord | null>(null);
-  const [mouseCoords, setMouseCoords] = useState<{ x: number; y: number } | null>(null);
-  const mouseRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [mouseCoords, setMouseCoords] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  
+  const anchorMap: Record<string, number> = {
+    tree: 0.88,
+    tree2: 0.9,
+    tree3: 0.87,
+  };
+
   useEffect(() => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current || loading) return;
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-
-    // rodar quando o canvas estiver disponível (após loading)
-    if (loading) return;
 
     const dpr = window.devicePixelRatio || 1;
 
@@ -28,33 +43,44 @@ const FloorElements: React.FC = () => {
       await preloadTrees();
 
       const { minX, maxX } = getSkyXBounds(GROUND_PADDING);
-      const groundAchievements = achievements.filter((a: any) => a.type !== "sky");
+      const groundAchievements = achievements.filter(
+        (a: any) => a.type !== "sky",
+      );
       const denom = Math.max(groundAchievements.length - 1, 1);
 
-      // Apenas elementos do terreno (árvores)
-      const records: TreeRecord[] = groundAchievements.map((achievement, index) => {
-        const baseX = Math.round(minX + (index / denom) * (maxX - minX));
-        const seed = achievement.id;
-        const prng = (n: number) => Math.abs(Math.sin(n * 12.9898) * 43758.5453) % 1;
+      const records: TreeRecord[] = groundAchievements.map(
+        (achievement, index) => {
+          const baseX = Math.round(minX + (index / denom) * (maxX - minX));
+          const seed = achievement.id;
+          const prng = (n: number) =>
+            Math.abs(Math.sin(n * 12.9898) * 43758.5453) % 1;
 
-        const x = baseX + Math.round((prng(seed) - 0.5) * 60);
-        const baseY = getTopPxForeground(baseX);
-        const y =
-          baseY +
-          Math.round(prng(seed + 1) * 70) +
-          Math.round((prng(seed + 2) - 0.5) * 20);
+          const x = baseX + Math.round((prng(seed) - 0.5) * 60);
 
-        const typeKey = index % 3 === 0 ? "tree" : index % 3 === 1 ? "tree2" : "tree3";
+          // 🔥 ANCORADO NO CONTORNO REAL
+          const baseY = getTopPxForeground(x);
+          const y = baseY + Math.round((prng(seed + 1) - 0.5) * 12);
 
-        return { id: achievement.id, x, y, w: 90, h: 95, achievement, typeKey };
-      });
+          const typeKey =
+            index % 3 === 0 ? "tree" : index % 3 === 1 ? "tree2" : "tree3";
 
-      // ---- Configuráveis (definidos em utils/terrain.ts) ----
+          return {
+            id: achievement.id,
+            x,
+            y: baseY, // AGORA y é o chão real
+            w: 90,
+            h: 95,
+            achievement,
+            typeKey,
+            anchorY: anchorMap[typeKey] ?? 0.9,
+          };
+        },
+      );
+
       const MIN_TREE_SPACING = TREE_MIN_SPACING;
       const MAX_VERTICAL_NUDGE = TREE_MAX_VERTICAL_NUDGE;
-      // ---------------------------------------------------------------
 
-      // Ordena por X para aplicar espaçamento horizontal mínimo
+      // 🌿 espaçamento horizontal
       records.sort((a, b) => a.x - b.x);
       for (let i = 1; i < records.length; i++) {
         const prev = records[i - 1];
@@ -64,87 +90,88 @@ const FloorElements: React.FC = () => {
         }
       }
 
-      // Garante que não saiam dos limites calculados
       for (const r of records) {
         r.x = Math.max(minX, Math.min(r.x, maxX));
+        r.y = getTopPxForeground(r.x);
       }
 
-      // Ajuste vertical simples para reduzir sobreposição de hitboxes
+      // 🌳 ajuste de sobreposição
       for (let i = 0; i < records.length - 1; i++) {
         const a = records[i];
         const b = records[i + 1];
+
         const aLeft = a.x - a.w / 2;
         const aRight = aLeft + a.w;
-        const aTop = a.y - a.h + 8;
-        const aBottom = aTop + a.h;
+        const aTop = a.y - a.h;
+        const aBottom = a.y;
+
         const bLeft = b.x - b.w / 2;
         const bRight = bLeft + b.w;
-        const bTop = b.y - b.h + 8;
-        const bBottom = bTop + b.h;
-        const overlapX = Math.max(0, Math.min(aRight, bRight) - Math.max(aLeft, bLeft));
-        const overlapY = Math.max(0, Math.min(aBottom, bBottom) - Math.max(aTop, bTop));
-        // Se houver sobreposição significativa, empurra a árvore mais "frontal" para baixo
+        const bTop = b.y - b.h;
+        const bBottom = b.y;
+
+        const overlapX = Math.max(
+          0,
+          Math.min(aRight, bRight) - Math.max(aLeft, bLeft),
+        );
+        const overlapY = Math.max(
+          0,
+          Math.min(aBottom, bBottom) - Math.max(aTop, bTop),
+        );
+
         if (overlapX > 10 && overlapY > 10) {
           const front = a.y > b.y ? a : b;
           front.y += Math.min(MAX_VERTICAL_NUDGE, Math.ceil(overlapY / 2));
         }
+        
       }
 
-      // Ordena por Y (profundidade) para desenhar em z-order e para o hit-testing
-      const zSorted = [...records].sort((a, b) => a.y - b.y);
-      treeMapRef.current = zSorted; // hitTest usa esta lista
+      // 🧭 profundidade real
+      const zSorted = [...records].sort((a, b) => a.y + a.h - (b.y + b.h));
+      treeMapRef.current = zSorted;
 
       const rect = canvas.getBoundingClientRect();
-
       canvas.width = Math.round(rect.width * dpr);
       canvas.height = Math.round(rect.height * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
       ctx.clearRect(0, 0, rect.width, rect.height);
 
       for (const t of zSorted) {
         const drawX = t.x - t.w / 2;
-        const drawY = t.y - t.h + 8;
-
+        const anchor = t.anchorY ?? 0.9;
+        const drawY = t.y - t.h * anchor;
         const img = TREE_IMAGES[t.typeKey];
+        if (img) ctx.drawImage(img, drawX, drawY, t.w, t.h);
+        else drawFallback(ctx, t);
 
-        if (img) {
-          ctx.drawImage(img, drawX, drawY, t.w, t.h);
-        } else {
-          drawFallback(ctx, t);
-        }
-        // 🔴 DEBUG: desenha a hitbox da árvore
-        // ctx.strokeStyle = "red";
-        // ctx.lineWidth = 1;
-        // ctx.strokeRect(t.x - t.w / 4, t.y - t.h + 8, t.w, t.h);
-        //  DEBUG: desenha a posição da árvore
-        // ctx.fillStyle = "blue";
-        // ctx.font = "12px monospace";
-        // ctx.fillText(
-        //   `(${Math.round(t.x)}, ${Math.round(t.y)})`,
-        //   t.x - t.w / 2,
-        //   t.y - t.h - 5,
-        // );
+//         ctx.strokeStyle = "red";
+// ctx.lineWidth = 1;
+// ctx.strokeRect(
+//   t.x - t.w / 2,
+//   t.y - t.h * (t.anchorY ?? 0.9),
+//   t.w,
+//   t.h
+// );
       }
+
+      
     };
 
     compute();
     window.addEventListener("resize", compute);
     return () => window.removeEventListener("resize", compute);
-  }, [achievements]);
+  }, [achievements, loading]);
 
   useEffect(() => {
+    if (loading) return;
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const handleMouseMove = (e: MouseEvent) => {
       const { x, y } = getMousePos(canvas, e);
-
-      mouseRef.current = { x, y };
       setMouseCoords({ x: Math.round(x), y: Math.round(y) });
-
       const found = hitTest(treeMapRef.current, x, y);
-
       setHovered(found ? { ...found } : null);
     };
 
@@ -153,32 +180,21 @@ const FloorElements: React.FC = () => {
       setMouseCoords(null);
     };
 
-    canvas.addEventListener('mousemove', handleMouseMove);
-    canvas.addEventListener('mouseleave', handleLeave);
-
+    canvas.addEventListener("mousemove", handleMouseMove);
+    canvas.addEventListener("mouseleave", handleLeave);
     return () => {
-      canvas.removeEventListener('mousemove', handleMouseMove);
-      canvas.removeEventListener('mouseleave', handleLeave);
+      canvas.removeEventListener("mousemove", handleMouseMove);
+      canvas.removeEventListener("mouseleave", handleLeave);
     };
   }, [loading]);
 
-  // 🎯 Hover sem re-render de canvas
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-  }, []);
-
   if (loading) return null;
 
-  
   return (
     <div className="absolute inset-0">
       <canvas
         ref={canvasRef}
         className="absolute inset-0 w-full h-full z-0 pointer-events-auto"
-        style={{ width: "100%", height: "100%" }}
       />
 
       {mouseCoords && hovered && (
@@ -195,4 +211,3 @@ const FloorElements: React.FC = () => {
 };
 
 export default FloorElements;
-

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Achievement } from '../../../types/Achievement';
+import { Achievement } from '../types/Achievement';
 
 const mockAchievements: Achievement[] = [
   {
@@ -18,7 +18,7 @@ const mockAchievements: Achievement[] = [
       id: 2,
       title: 'Ler 12 Livros',
       description: 'Finalizar 12 volumes; objetivo de leitura leve.',
-      type: 'sky',
+      type: 'tree',
       completed: false,
       progress: 50,
       createdAt: '2026-01-12T11:30:00.000Z',
@@ -31,7 +31,7 @@ const mockAchievements: Achievement[] = [
     title: 'Correr 5km',
     year: 2026,
     description: 'Completar uma corrida de 5km sem pausas.',
-    type: 'sky',
+    type: 'tree',
     completed: true,
     progress: 100,
     createdAt: '2026-01-05T07:00:00.000Z',

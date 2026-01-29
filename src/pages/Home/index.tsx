@@ -1,7 +1,7 @@
-import { useAchievements } from './hooks/useAchievements';
-import Sky from './components/Sky';
-import Landscape from './components/Landscape';
-import HillOutline from './components/HillOutline';
+import { useAchievements } from '../../hooks/useAchievements';
+import SkyLayer from './layers/SkyLayer';
+import LandscapeLayer from './layers/LandscapeLayer';
+import HillOutline from './debug/HillOutline';
 import FloorElements from './components/Elements/Floor/FloorElements';
 import SkyElements from './components/Elements/Sky/SkyElements';
 
@@ -18,10 +18,10 @@ const Home = () => {
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
-      <Sky />
-      <Landscape />
+      <SkyLayer />
+      <LandscapeLayer />
       {/* <HillOutline/> */}
-      <FloorElements />
+      {/* <FloorElements /> */}
       <SkyElements />
     </div>
   );

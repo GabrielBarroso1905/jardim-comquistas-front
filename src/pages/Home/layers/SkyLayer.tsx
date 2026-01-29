@@ -1,9 +1,9 @@
 import { motion } from 'framer-motion';
-import { isSky } from '../../utils/terrain';
+import { isSky } from '../../../core/terrain/bounds';
 
-const Sky = () => {
+const SkyLayer = () => {
   return (
-    <div className="absolute inset-0 bg-gradient-to-b from-purple-400 via-pink-300 to-orange-200">
+    <div className="absolute inset-0 bg-gradient-to-b from-blue-900 via-black-900 to-purple-900">
       {/* partículas sutis (luzes) */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         {Array.from({ length: 20 }).map((_, i) => (
@@ -53,4 +53,4 @@ const Sky = () => {
   );
 };
 
-export default Sky;
+export default SkyLayer;

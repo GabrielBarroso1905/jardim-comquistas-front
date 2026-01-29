@@ -8,17 +8,26 @@ export function getMousePos(canvas: HTMLCanvasElement, e: PointerEvent | MouseEv
   };
 }
 
-export function hitTest(records: TreeRecord[], x: number, y: number): TreeRecord | null {
-  return (
-    records.find((t) => {
-      const left = t.x - t.w / 2;
-      const right = t.x + t.w / 2;
-      const top = t.y - t.h + 8;
-      const bottom = t.y + 8;
+export function hitTest(
+  records: any[],
+  x: number,
+  y: number
+): any | null {
+  for (let i = records.length - 1; i >= 0; i--) {
+    const t = records[i];
+    const anchor = t.anchorY ?? 0.9;
 
-      return x >= left && x <= right && y >= top && y <= bottom;
-    }) || null
-  );
+    const left = t.x - t.w / 2;
+    const right = t.x + t.w / 2;
+
+    const top = t.y - t.h * anchor;
+    const bottom = top + t.h;
+
+    if (x >= left && x <= right && y >= top && y <= bottom) {
+      return t;
+    }
+  }
+  return null;
 }
 
 export function drawFallback(ctx: CanvasRenderingContext2D, t: TreeRecord) {
